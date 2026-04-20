@@ -1,0 +1,163 @@
+"Name"     = 'A++'
+"Author"   = 'Abdullah Soliman'
+"Version"  = '1.0.0'
+"About"    = 'some c++ and some python'
+
+"Start Symbol" = <Start>
+
+"Case Sensitive" = True
+"Comment Line" = '##'
+
+! -------------------------------------------------
+! Character Sets
+! -------------------------------------------------
+{WS}           = {Whitespace} - {CR} - {LF}
+{String Chars} = {Printable} + {HT} - ["\]
+{idTail}       = {AlphaNumeric} + [_]
+
+! -------------------------------------------------
+! Terminals
+! -------------------------------------------------
+Whitespace    = {WS}+
+NewLine       = {CR}{LF} | {CR} | {LF}
+Identifier    = {Letter}{idTail}*
+StringLiteral = '"' ( {String Chars} | '\' {Printable} )* '"'
+
+intLiteral    = {Digit}+
+floatLiteral  = {Digit}+ '.' {Digit}+
+boolLiteral   = 'True' | 'False'
+
+! -------------------------------------------------
+! Rules
+! -------------------------------------------------
+<nl>    ::= NewLine <nl>
+          | NewLine
+
+<nl opt> ::= NewLine <nl opt>
+           |
+
+! entry point
+<Start> ::= <nl opt> <Program>
+
+<Program> ::= <decList>
+
+<decList> ::= <dec> <nl> <decList>
+            | <dec> <nl>
+            | <dec>
+
+<dec> ::= <varDec> | <funcDecl> | <stmt>
+
+! data types
+<type> ::= 'int' | 'float' | 'bool' | 'string' | 'void'
+
+! Declaration Statement
+<varDec> ::= <type> Identifier
+           | <type> Identifier '=' <Expression>
+
+! Assignment Statement
+<assign> ::= Identifier '='  <Expression>
+           | Identifier '+=' <Expression>
+           | Identifier '-=' <Expression>
+           | Identifier '*=' <Expression>
+           | Identifier '/=' <Expression>
+           | Identifier '%=' <Expression>
+
+! Statements
+<stmt> ::= <assign>
+         | <if Stmt>
+         | <while Stmt>
+         | <for Stmt>
+         | <return Stmt>
+         | <call Stmt>
+         | <print Stmt>
+
+<stmt List> ::= <stmt> <nl> <stmt List>
+              | <stmt> <nl>
+              | <stmt>
+
+
+<print Stmt> ::= 'Textout' '(' <args> ')'
+               | 'Textout' '(' ')'
+
+<block> ::= '{' <nl opt> <stmt List> <nl opt> '}'
+          | '{' <nl opt> '}'
+
+! Condition Statement
+<if Stmt> ::= 'if' '(' <Expression> ')' <block>
+            | 'if' '(' <Expression> ')' <block> <else>
+
+<else> ::= 'else' 'if' '(' <Expression> ')' <block>
+         | 'else' 'if' '(' <Expression> ')' <block> <else>
+         | 'else' <block>
+
+! Loop Statements
+<while Stmt> ::= 'while' '(' <Expression> ')' <block>
+
+<for Stmt> ::= 'for' '(' <for Init> ';' <Expression> ';' <for Exps> ')' <block>
+
+<for Init> ::= <varDec>
+             | <assign>
+             |
+
+<for Exps> ::= Identifier '='  <Expression>
+             | Identifier '+=' <Expression>
+             | Identifier '-=' <Expression>
+             | Identifier '++'
+             | Identifier '--'
+
+! method Dec and call
+<funcDecl> ::= <type> Identifier '(' <param List> ')' <block>
+             | <type> Identifier '(' ')' <block>
+
+<param List> ::= <param> ',' <param List>
+               | <param>
+
+<param> ::= <type> Identifier
+
+
+<return Stmt> ::= 'return' <Expression>
+               | 'return'
+
+<call Stmt> ::= <call Exp>
+
+<call Exp> ::= Identifier '(' <args> ')'
+             | Identifier '(' ')'
+
+<args> ::= <Expression> ',' <args>
+         | <Expression>
+
+! Expressions
+<Expression>  ::= <Expression> '||' <and Exp>
+               |  <and Exp>
+
+<and Exp>     ::= <and Exp> '&&' <com Exp>
+               |  <com Exp>
+
+<com Exp>     ::= <com Exp> '>'  <add Exp>
+               |  <com Exp> '<'  <add Exp>
+               |  <com Exp> '<=' <add Exp>
+               |  <com Exp> '>=' <add Exp>
+               |  <com Exp> '==' <add Exp>
+               |  <com Exp> '!=' <add Exp>
+               |  <add Exp>
+
+<add Exp>     ::= <add Exp> '+' <mult Exp>
+               |  <add Exp> '-' <mult Exp>
+               |  <mult Exp>
+
+<mult Exp>    ::= <mult Exp> '*'  <negate Exp>
+               |  <mult Exp> '/'  <negate Exp>
+               |  <mult Exp> '%'  <negate Exp>
+               |  <negate Exp>
+
+<negate Exp>  ::= '-' <value>
+               |  '!' <value>
+               |  <value>
+
+<value>       ::= intLiteral
+               |  floatLiteral
+               |  StringLiteral
+               |  boolLiteral
+               |  <call Exp>
+               |  Identifier
+               |  '(' <Expression> ')'
