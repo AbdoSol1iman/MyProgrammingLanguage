@@ -1,0 +1,68 @@
+# Build output
+bin/
+/bin/Debug/net9.0
+obj/
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+
+# Visual Studio
+.vs/
+.vscode/
+*.user
+*.suo
+*.sln.iml
+*.DotSettings.user
+
+# Rider
+.idea/
+*.sln.iml
+
+# Build folders
+packages/
+.nuget/
+
+# NuGet
+*.nupkg
+*.snupkg
+*.lock.json
+
+# User-specific files
+appsettings.local.json
+*.pfx
+*.p12
+
+# Temporary files
+*.tmp
+*.temp
+*~
+*.bak
+*.swp
+*.swo
+
+# OS-specific
+.DS_Store
+Thumbs.db
+*.log
+
+# IDE
+*.code-workspace
+.editorconfig
+
+# Testing
+*.trx
+TestResults/
+coverage/
+.coverage
+
+# Avalonia
+.cache/
+*.cache
+
+# Local environment files
+.env
+.env.local
