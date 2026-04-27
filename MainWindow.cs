@@ -345,7 +345,7 @@ void main()
 
     private Control BuildUI()
     {
-        // ── header ──────────────────────────────────────────
+
         var header = new Grid
         {
             Background        = new SolidColorBrush(Color.Parse("#1c1c24")),
@@ -390,7 +390,7 @@ void main()
         header.Children.Add(btnClear);
         header.Children.Add(btnParse);
 
-        // ── editor (left) ────────────────────────────────────
+
         _editor = new TextBox
         {
             AcceptsReturn   = true,
@@ -413,7 +413,7 @@ void main()
         editorPane.Children.Add(MakePaneLabel("SOURCE CODE"));
         editorPane.Children.Add(_editor);
 
-        // ── token output (top-right) ─────────────────────────
+
         _tokenOut = new TextBox
         {
             IsReadOnly      = true,
@@ -430,7 +430,7 @@ void main()
         tokenPane.Children.Add(MakePaneLabel("TOKENS"));
         tokenPane.Children.Add(_tokenOut);
 
-        // ── parse result (bottom-right) ──────────────────────
+
         _parseOut = new TextBox
         {
             IsReadOnly      = true,
@@ -447,7 +447,7 @@ void main()
         parsePane.Children.Add(MakePaneLabel("PARSE RESULT"));
         parsePane.Children.Add(_parseOut);
 
-        // ── right panel (no splitter) ─────────────────────────
+
         var rightSplit = new Grid
         {
             RowDefinitions = new RowDefinitions("*,*"),
@@ -458,7 +458,7 @@ void main()
         rightSplit.Children.Add(tokenPane);
         rightSplit.Children.Add(parsePane);
 
-        // ── main layout (no splitter) ─────────────────────────
+
         var mainSplit = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("*,420"),
@@ -469,7 +469,7 @@ void main()
         mainSplit.Children.Add(editorPane);
         mainSplit.Children.Add(rightSplit);
 
-        // ── status bar ───────────────────────────────────────
+
         _status = new TextBlock
         {
             Text       = "  Ready",
@@ -479,7 +479,7 @@ void main()
             Background = new SolidColorBrush(Color.Parse("#1c1c24"))
         };
 
-        // ── root layout ──────────────────────────────────────
+
         var root = new DockPanel { Background = new SolidColorBrush(Color.Parse("#12121a")) };
         DockPanel.SetDock(header,  Dock.Top);
         DockPanel.SetDock(_status, Dock.Bottom);

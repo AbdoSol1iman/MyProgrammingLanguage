@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/media/dev911/games/APlusPlusChecker/APlusPlusChecker.csproj": {}
+    "/media/dev911/games/MyProgrammingLanguage/APlusPlusChecker.csproj": {}
   },
   "projects": {
-    "/media/dev911/games/APlusPlusChecker/APlusPlusChecker.csproj": {
+    "/media/dev911/games/MyProgrammingLanguage/APlusPlusChecker.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/media/dev911/games/APlusPlusChecker/APlusPlusChecker.csproj",
+        "projectUniqueName": "/media/dev911/games/MyProgrammingLanguage/APlusPlusChecker.csproj",
         "projectName": "APlusPlusChecker",
-        "projectPath": "/media/dev911/games/APlusPlusChecker/APlusPlusChecker.csproj",
+        "projectPath": "/media/dev911/games/MyProgrammingLanguage/APlusPlusChecker.csproj",
         "packagesPath": "/home/dev911/.nuget/packages/",
-        "outputPath": "/media/dev911/games/APlusPlusChecker/obj/",
+        "outputPath": "/media/dev911/games/MyProgrammingLanguage/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/home/dev911/.nuget/NuGet/NuGet.Config"

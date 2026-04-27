@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "HXHTU60Rt2A=",
+  "dgSpecHash": "AHkpofJjBf8=",
   "success": true,
-  "projectFilePath": "/media/dev911/games/APlusPlusChecker/APlusPlusChecker.csproj",
+  "projectFilePath": "/media/dev911/games/MyProgrammingLanguage/APlusPlusChecker.csproj",
   "expectedPackageFiles": [
     "/home/dev911/.nuget/packages/avalonia/11.2.7/avalonia.11.2.7.nupkg.sha512",
     "/home/dev911/.nuget/packages/avalonia.angle.windows.natives/2.1.22045.20230930/avalonia.angle.windows.natives.2.1.22045.20230930.nupkg.sha512",
