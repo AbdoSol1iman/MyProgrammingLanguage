@@ -3,10 +3,15 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
 namespace APlusPlusChecker;
+
+public delegate void TokenErrorEventHandler(object? sender, TokenErrorEventArgs args);
+public delegate void ParseErrorEventHandler(object? sender, ParseErrorEventArgs args);
+public delegate void TokenReadEventHandler(object? sender, TokenReadEventArgs args);
 
 public enum TokenType
 {
@@ -58,6 +63,9 @@ public class Lexer
 
     public List<Token> Tokens = new();
     public string?     Error  = null;
+    
+    public event TokenErrorEventHandler? TokenErrorEvent;
+    public event TokenReadEventHandler? TokenReadEvent;
 
     public bool Tokenize(string source)
     {
@@ -77,15 +85,28 @@ public class Lexer
                     int j = i + 1;
                     while (j < line.Length && line[j] != '"') j++;
                     if (j >= line.Length) { Error = $"Line {ln+1}: unterminated string literal"; return false; }
-                    Tokens.Add(new Token(TokenType.StringLiteral, line.Substring(i, j-i+1), ln+1, i+1));
+                    var tok = new Token(TokenType.StringLiteral, line.Substring(i, j-i+1), ln+1, i+1);
+                    AddToken(tok);
                     i = j + 1; continue;
                 }
 
                 var floatM = Regex.Match(line[i..], @"^[0-9]+\.[0-9]+");
-                if (floatM.Success) { Tokens.Add(new Token(TokenType.FloatLiteral, floatM.Value, ln+1, i+1)); i += floatM.Length; continue; }
+                if (floatM.Success)
+                {
+                    var tok = new Token(TokenType.FloatLiteral, floatM.Value, ln+1, i+1);
+                    AddToken(tok);
+                    i += floatM.Length;
+                    continue;
+                }
 
                 var intM = Regex.Match(line[i..], @"^[0-9]+");
-                if (intM.Success) { Tokens.Add(new Token(TokenType.IntLiteral, intM.Value, ln+1, i+1)); i += intM.Length; continue; }
+                if (intM.Success)
+                {
+                    var tok = new Token(TokenType.IntLiteral, intM.Value, ln+1, i+1);
+                    AddToken(tok);
+                    i += intM.Length;
+                    continue;
+                }
 
                 if (char.IsLetter(line[i]) || line[i] == '_')
                 {
@@ -93,26 +114,74 @@ public class Lexer
                     while (j < line.Length && (char.IsLetterOrDigit(line[j]) || line[j] == '_')) j++;
                     string word = line.Substring(i, j-i);
                     TokenType type = Keywords.TryGetValue(word, out var kw) ? kw : TokenType.Identifier;
-                    Tokens.Add(new Token(type, word, ln+1, i+1));
-                    i = j; continue;
+                    var tok = new Token(type, word, ln+1, i+1);
+                    AddToken(tok);
+                    i = j;
+                    continue;
                 }
 
                 if (i + 1 < line.Length)
                 {
                     string two = line.Substring(i, 2);
-                    if (CompoundOps.TryGetValue(two, out var cop)) { Tokens.Add(new Token(cop, two, ln+1, i+1)); i += 2; continue; }
+                    if (CompoundOps.TryGetValue(two, out var cop))
+                    {
+                        var tok = new Token(cop, two, ln+1, i+1);
+                        AddToken(tok);
+                        i += 2;
+                        continue;
+                    }
                 }
 
-                if (SingleOps.TryGetValue(line[i], out var sop)) { Tokens.Add(new Token(sop, line[i].ToString(), ln+1, i+1)); i++; continue; }
+                if (SingleOps.TryGetValue(line[i], out var sop))
+                {
+                    var tok = new Token(sop, line[i].ToString(), ln+1, i+1);
+                    AddToken(tok);
+                    i++;
+                    continue;
+                }
 
                 Error = $"Line {ln+1}, col {i+1}: unexpected character '{line[i]}'"; return false;
             }
             bool hasContent = Tokens.Count > 0 && Tokens[^1].Type != TokenType.NewLine;
-            if (hasContent) Tokens.Add(new Token(TokenType.NewLine, "↵", ln+1, line.Length+1));
+            if (hasContent)
+            {
+                var tok = new Token(TokenType.NewLine, "↵", ln+1, line.Length+1);
+                AddToken(tok);
+            }
         }
-        Tokens.Add(new Token(TokenType.Eof, "EOF", lines.Length, 0));
+        var eofTok = new Token(TokenType.Eof, "EOF", lines.Length, 0);
+        AddToken(eofTok);
         return true;
     }
+
+    private void AddToken(Token token)
+    {
+        Tokens.Add(token);
+        OnTokenRead(token);
+    }
+
+    private void OnTokenRead(Token token)
+    {
+        TokenReadEvent?.Invoke(this, new TokenReadEventArgs { Token = token });
+    }
+}
+
+public class TokenErrorEventArgs
+{
+    public Token Token { get; init; } = null!;
+    public string Message { get; init; } = string.Empty;
+}
+
+public class ParseErrorEventArgs
+{
+    public Token UnexpectedToken { get; init; } = null!;
+    public string Context { get; init; } = string.Empty;
+    public string Message { get; init; } = string.Empty;
+}
+
+public class TokenReadEventArgs
+{
+    public Token Token { get; init; } = null!;
 }
 
 public class Parser
@@ -120,6 +189,10 @@ public class Parser
     private List<Token> _tokens = new();
     private int         _pos;
     public  List<string> Errors = new();
+    
+    public event TokenErrorEventHandler? TokenErrorEvent;
+    public event ParseErrorEventHandler? ParseErrorEvent;
+    public event TokenReadEventHandler? TokenReadEvent;
 
     private static readonly HashSet<TokenType> TypeKw = new()
         { TokenType.Int, TokenType.Float, TokenType.String, TokenType.Bool, TokenType.Void };
@@ -136,13 +209,20 @@ public class Parser
         while (_pos < _tokens.Count && _tokens[_pos].Type == TokenType.NewLine) _pos++;
         return _pos < _tokens.Count ? _tokens[_pos] : new Token(TokenType.Eof, "EOF", 0, 0);
     }
-    private Token Consume() => _tokens[_pos++];
+    private Token Consume()
+    {
+        var tok = _tokens[_pos++];
+        OnTokenRead(tok);
+        return tok;
+    }
     private bool IsType() => TypeKw.Contains(Peek().Type);
     private void Expect(TokenType t, string ctx = "")
     {
         var tok = Peek();
         if (tok.Type == t) { Consume(); return; }
-        Errors.Add($"Line {tok.Line}: expected '{TStr(t)}'" + (ctx.Length > 0 ? $" in {ctx}" : "") + $", got '{tok.Value}'");
+        var msg = $"Line {tok.Line}: expected '{TStr(t)}'" + (ctx.Length > 0 ? $" in {ctx}" : "") + $", got '{tok.Value}'";
+        Errors.Add(msg);
+        OnParseError(tok, ctx, msg);
     }
     private static string TStr(TokenType t) => t switch
     {
@@ -152,18 +232,56 @@ public class Parser
         _ => t.ToString()
     };
 
+    private void OnParseError(Token token, string context, string message)
+    {
+        ParseErrorEvent?.Invoke(this, new ParseErrorEventArgs
+        {
+            UnexpectedToken = token,
+            Context = context,
+            Message = message
+        });
+    }
+
+    private void OnTokenError(Token token, string message)
+    {
+        TokenErrorEvent?.Invoke(this, new TokenErrorEventArgs
+        {
+            Token = token,
+            Message = message
+        });
+    }
+
+    private void OnTokenRead(Token token)
+    {
+        TokenReadEvent?.Invoke(this, new TokenReadEventArgs { Token = token });
+    }
+
     private void ParseProgram()
     {
         while (Peek().Type != TokenType.Eof)
         {
-            if (!IsType()) { Errors.Add($"Line {Peek().Line}: expected type keyword, got '{Peek().Value}'"); Consume(); continue; }
+            if (!IsType())
+            {
+                var tok = Peek();
+                var msg = $"Line {tok.Line}: expected type keyword, got '{tok.Value}'";
+                Errors.Add(msg);
+                OnParseError(tok, "program", msg);
+                Consume();
+                continue;
+            }
             ParseFuncDecl();
         }
     }
     private void ParseFuncDecl()
     {
         Consume();
-        if (Peek().Type != TokenType.Identifier) Errors.Add($"Line {Peek().Line}: expected function name");
+        if (Peek().Type != TokenType.Identifier)
+        {
+            var tok = Peek();
+            var msg = $"Line {tok.Line}: expected function name";
+            Errors.Add(msg);
+            OnParseError(tok, "function declaration", msg);
+        }
         else Consume();
         ParseParams(); ParseBlock();
     }
@@ -228,7 +346,13 @@ public class Parser
     private void ParseVarDec()
     {
         Consume();
-        if (Peek().Type != TokenType.Identifier) Errors.Add($"Line {Peek().Line}: expected identifier in declaration");
+        if (Peek().Type != TokenType.Identifier)
+        {
+            var tok = Peek();
+            var msg = $"Line {tok.Line}: expected identifier in declaration";
+            Errors.Add(msg);
+            OnParseError(tok, "variable declaration", msg);
+        }
         else Consume();
         if (Peek().Type == TokenType.Eq) { Consume(); ParseExpr(); }
     }
@@ -258,7 +382,10 @@ public class Parser
             t.Type == TokenType.StringLiteral || t.Type == TokenType.BoolLiteral) { Consume(); return; }
         if (t.Type == TokenType.Identifier) { Consume(); if (Peek().Type == TokenType.LParen) ParseCallArgs(); return; }
         if (t.Type == TokenType.LParen)     { Consume(); ParseExpr(); Expect(TokenType.RParen,"expr"); return; }
-        Errors.Add($"Line {t.Line}: unexpected token '{t.Value}' in expression"); Consume();
+        var msg = $"Line {t.Line}: unexpected token '{t.Value}' in expression";
+        Errors.Add(msg);
+        OnParseError(t, "expression", msg);
+        Consume();
     }
     private void ParseCallArgs()
     {
@@ -275,67 +402,9 @@ public class MainWindow : Window
     private TextBox   _parseOut = null!;
     private TextBlock _status   = null!;
 
-    private static readonly Dictionary<string, string> Samples = new()
-    {
-        ["Hello World"] =
-@"void main()
-{
-  string msg = ""Hello, World!""
-  Textout(msg)
-}",
-        ["Function"] =
-@"int add(int a, int b)
-{
-  return a + b
-}
-
-void main()
-{
-  int result = add(3, 4)
-  Textout(result)
-}",
-        ["If / Else"] =
-@"void main()
-{
-  int x = 10
-  if (x > 5)
-  {
-    Textout(""big"")
-  }
-  else
-  {
-    Textout(""small"")
-  }
-}",
-        ["While Loop"] =
-@"void main()
-{
-  int i = 0
-  while (i < 10)
-  {
-    Textout(i)
-    i++
-  }
-}",
-        ["For Loop"] =
-@"void main()
-{
-  for (int i = 0; i < 5; i++)
-  {
-    Textout(i)
-  }
-}",
-        ["Syntax Error"] =
-@"void main()
-{
-  int = 42
-  Textout(
-}"
-    };
-
     public MainWindow()
     {
-        Title      = "A++ Grammar Checker  ·  GOLD Parser v5.0";
+        Title      = "A++ Grammar Checker";
         Width      = 1100;
         Height     = 680;
         Background = new SolidColorBrush(Color.Parse("#12121a"));
@@ -345,12 +414,11 @@ void main()
 
     private Control BuildUI()
     {
-
         var header = new Grid
         {
             Background        = new SolidColorBrush(Color.Parse("#1c1c24")),
             Height            = 48,
-            ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*,Auto,Auto,Auto")
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto")
         };
 
         var badge = MakeLabel("A++", "#6366f1", 13, bold: true);
@@ -358,35 +426,15 @@ void main()
         badge.VerticalAlignment = VerticalAlignment.Center;
         Grid.SetColumn(badge, 0);
 
-        var sub = MakeLabel("GOLD Parser v5.0 · Abdullah Soliman", "#64748b", 9);
-        sub.VerticalAlignment = VerticalAlignment.Center;
-        Grid.SetColumn(sub, 1);
-
-        var combo = new ComboBox
-        {
-            PlaceholderText     = "── Samples ──",
-            Width               = 160,
-            Margin              = new Thickness(0, 10, 8, 10),
-            VerticalAlignment   = VerticalAlignment.Center
-        };
-        foreach (var k in Samples.Keys) combo.Items.Add(k);
-        combo.SelectionChanged += (s, e) =>
-        {
-            if (combo.SelectedItem is string name) { LoadSample(name); combo.SelectedItem = null; }
-        };
-        Grid.SetColumn(combo, 3);
-
         var btnClear = MakeButton("Clear", "#26263a", "#94a3b8");
         btnClear.Click += (_, _) => ClearAll();
-        Grid.SetColumn(btnClear, 4);
+        Grid.SetColumn(btnClear, 2);
 
         var btnParse = MakeButton("▶  Parse", "#6366f1", "#ffffff");
         btnParse.Click += (_, _) => RunParse();
-        Grid.SetColumn(btnParse, 5);
+        Grid.SetColumn(btnParse, 3);
 
         header.Children.Add(badge);
-        header.Children.Add(sub);
-        header.Children.Add(combo);
         header.Children.Add(btnClear);
         header.Children.Add(btnParse);
 
@@ -487,7 +535,6 @@ void main()
         root.Children.Add(_status);
         root.Children.Add(mainSplit);
 
-        LoadSample("Hello World");
         return root;
     }
 
@@ -527,13 +574,6 @@ void main()
         return b;
     }
 
-    private void LoadSample(string name)
-    {
-        if (!Samples.ContainsKey(name)) return;
-        _editor.Text = Samples[name];
-        RunParse();
-    }
-
     private void ClearAll()
     {
         _editor.Text   = "";
@@ -548,6 +588,9 @@ void main()
         if (string.IsNullOrWhiteSpace(src)) { SetStatus("Nothing to parse", "#64748b"); return; }
 
         var lexer = new Lexer();
+        lexer.TokenErrorEvent += OnLexerTokenError;
+        lexer.TokenReadEvent += OnLexerTokenRead;
+        
         if (!lexer.Tokenize(src))
         {
             ShowTokens(lexer.Tokens);
@@ -557,6 +600,10 @@ void main()
         }
 
         var parser = new Parser();
+        parser.TokenErrorEvent += OnParserTokenError;
+        parser.ParseErrorEvent += OnParserParseError;
+        parser.TokenReadEvent += OnParserTokenRead;
+        
         var errors = parser.Parse(lexer.Tokens);
         ShowTokens(lexer.Tokens);
         ShowParseResult(errors);
@@ -604,5 +651,32 @@ void main()
     {
         _status.Text       = "  " + msg;
         _status.Foreground = new SolidColorBrush(Color.Parse(hex));
+    }
+
+    private void OnLexerTokenError(object? sender, TokenErrorEventArgs args)
+    {
+        System.Diagnostics.Debug.WriteLine($"[LEXER TOKEN ERROR] Line {args.Token.Line}, Col {args.Token.Col}: {args.Message}");
+    }
+
+    private void OnLexerTokenRead(object? sender, TokenReadEventArgs args)
+    {
+        System.Diagnostics.Debug.WriteLine($"[LEXER TOKEN READ] {args.Token.Type,-18} '{args.Token.Value}' @ Line {args.Token.Line}:{args.Token.Col}");
+    }
+
+    private void OnParserTokenError(object? sender, TokenErrorEventArgs args)
+    {
+        System.Diagnostics.Debug.WriteLine($"[PARSER TOKEN ERROR] Line {args.Token.Line}, Col {args.Token.Col}: {args.Message}");
+    }
+
+    private void OnParserTokenRead(object? sender, TokenReadEventArgs args)
+    {
+        System.Diagnostics.Debug.WriteLine($"[PARSER TOKEN READ] {args.Token.Type,-18} '{args.Token.Value}' @ Line {args.Token.Line}:{args.Token.Col}");
+    }
+
+    private void OnParserParseError(object? sender, ParseErrorEventArgs args)
+    {
+        System.Diagnostics.Debug.WriteLine($"[PARSE ERROR] Line {args.UnexpectedToken.Line}: {args.Message}");
+        System.Diagnostics.Debug.WriteLine($"  Context: {args.Context}");
+        System.Diagnostics.Debug.WriteLine($"  Unexpected Token: {args.UnexpectedToken.Type} '{args.UnexpectedToken.Value}'");
     }
 }
